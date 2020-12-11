@@ -127,11 +127,12 @@ void HandleFATTable(HANDLE h, int ClusterNeed)
     int TurnYes = 0;
     while (HaveTooken <= ClusterNeed)
     {
-        ReadFileWithSize(h, Buffer, 512, ReadPos);
+        ReadFileWithSize(h, Buffer, 512, ReadPos);      //先读入完整的fat扇区表
         HasChnage = 0;
         for (int i = 0; i < 128; i++)
         {
-            if (Buffer[i * 4] == 0 && Buffer[i * 4 + 1] == 0 && Buffer[i * 4 + 2] == 0 && Buffer[i * 4 + 3] == 0)
+            //找寻可以利用的空扇区位
+            if (Buffer[i * 4] == 0 && Buffer[i * 4 + 1] == 0 && Buffer[i * 4 + 2] == 0 && Buffer[i * 4 + 3] == 0)       
             {
                 if (TurnYes == 0)
                 {
@@ -210,7 +211,7 @@ void WriteFileInto(HANDLE h)
         cout << "failed" << endl;
     }
     fileSize = GetFileSize(pFile, NULL);          //得到文件的大小
-    ClusterNeed = fileSize / (ClusterSize * 512) + (fileSize % (ClusterSize * 512));
+    ClusterNeed = fileSize / (ClusterSize * 512) + 1;    //(fileSize % (ClusterSize * 512));
     HandleFATTable(h, ClusterNeed);          //修改FAT表等一系列信息
     unsigned char* TemValue = new unsigned char[512 * ClusterSize + 1];               //存放读取的临时数据，在改变之后顺手存到FAT表中
     memset(TemValue, 0, sizeof(TemValue));
@@ -348,6 +349,28 @@ HANDLE ChooseAHandle(char u)
     }
     return h;
 }
+
+
+void Writemyfile(HANDLE h)
+{
+    HANDLE pFile;
+    DWORD fileSize;
+    pFile = CreateFile(TEXT("..\\writefile.txt"), GENERIC_READ | GENERIC_WRITE,
+        FILE_SHARE_READ | FILE_SHARE_WRITE,
+        NULL,
+        OPEN_EXISTING,
+        FILE_FLAG_WRITE_THROUGH,
+        NULL);
+    if (pFile == INVALID_HANDLE_VALUE)
+    {
+        DWORD k = GetLastError();
+        printf("错误码k=%d\n", k);
+        cout << "failed" << endl;
+    }
+    fileSize = GetFileSize(pFile, NULL);    //得到文件的大小
+    ClusterNeed = fileSize / (ClusterSize * 512) + 1;   //算出需要的簇的数量
+
+}
 int main()
 {
     HANDLE h;
@@ -369,17 +392,17 @@ int main()
             GetInfoOfUSB(h);
             ReadFileWithSize(h, buffer, 512, 0x800);
 
-            //if (buffer[0] == 0 && buffer[1] == 0 && buffer[2] == 0 && buffer[3] == 0)
-            //{
-            //    WriteFileInto(h);
-            //    //FillTheFile(h);
-            //    U[0] = 0; U[1] = 0;
-            //}
-            //else
-            //{
-            //    FillTheFile(h);
-            //    U[0] = 0; U[1] = 0;
-            //}
+            if (buffer[0] == 0 && buffer[1] == 0 && buffer[2] == 0 && buffer[3] == 0)
+            {
+                WriteFileInto(h);
+                //FillTheFile(h);
+                U[0] = 0; U[1] = 0;
+            }
+            else
+            {
+                FillTheFile(h);
+                U[0] = 0; U[1] = 0;
+            }
             CloseHandle(h);
         }
     }
